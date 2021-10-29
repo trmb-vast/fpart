@@ -1,16 +1,21 @@
 # Wrapper script to do the mounts and create proper fpsync.vast args:
 
+### General Note:  If rsync can do about 200MB/sec on your workload,  fpsync can do up to 1GB/sec, and fpsync.vast can double that (or more).
+The idea is to saturate the destination, without reguard to the source, and make it go as f^HVast as possible. 
+### Specialty Notes:  a special compiled rsync with the fadvise patch, and the sparse-block-size patch can also help. 
+                  Also.. Rolling checksums  with xxhash speed things up for fpsync or rsync "incremental updates" of existing files which havve changed since last time.  That is available (if you enable it) in rsync-3.2.3 and newer.
+
 ## fpsync.vast 
-This will be a pull-request to upstream for martymac. So far it has been tested many times, but in a narrow use-case.
 The function this adds is to enable multiple writer destinations so we can remove NFSd destination filer bottlenecks 
 when using a scale-out NAS such as VAST. Each VIP in vast can be on different servers thus increasing performance.
 Originally this patch was written for a single-source like a local NVME flash drive which could not benefit from 
 the fpsync -w  scale-out flags to run on multiple hosts.  The acompany wrapper script mk_fpsync_list helps with setup.
+This will someday become a pull-request to upstream for martymac. So far it has been tested many times, but in a narrow use-case.
 
 
 ## mk_fpsync_list  wrapper script:
 
-The user should copy this to a name related to the job, and edit it there. It is adviseable to keep this script around so you know who ran what, how, and with what parameters.  make a new copy each time you want to fpsync something new… maybe build a repo of scripts so you have them for future reference. 
+The user should copy this to a filename related to the replication job at hand, and edit it there. It is adviseable to keep this script around so you know who ran what, how, and with what parameters.  make a new copy each time you want to fpsync something new… maybe build a repo of scripts so you have them for future reference. 
 
 anyways…  edit the file and fill in the variables.  (examples for our lab are the defaults)
 ```
@@ -52,15 +57,12 @@ Tuning the -s and -f flags of fpsync/fpart:
 This is kind of a black-art.. you have to understand the dataset, the src filer capabilities,  and the data-movers.  You can easily be bottlenecked by:   
 
     src filer Bandwidth
-
     src filer read IOPS
-
     data mover cpu or network
+    IOPS per destination mountpoint (smallfiles)
 
-    vast IOPS per mountpoint (smallfiles)
+So check those out first before spending time going back and forth on tuning the -s (size) and -f #files  and -n# (number of jobs) flags which create the chunked-sized-partitions of files which are then run by -n jobs at the same time.  remember, there is some ssh setup time for job start, so if you have a very small -f #,  and it finishes in 1 second, then you probably wasted 1 second of setup time.  so make -f bigger. 
 
-so check those out first before spending time going back and forth on tuning the -s (size) and -f #files  and -n# (number of jobs) flags which create the chunked-sized-partitions of files which are then run by -n jobs at the same time.  remember, there is some ssh setup time for job start, so if you have a very small -f #,  and it finishes in 1 second, then you probably wasted 1 second of setup time.  so make -f bigger. 
-
-you can kind of get a handle on this by watching a single-threaded rsync.. and watching how many files/sec are scrolling on the screen.. 2 files per second means largefiles (or narrow network pipes)… so you can make your -f # smaller.. like 1000.     or if you are running a “redo”  then you have to think a bit about that.. 
+You can kind of get a handle on this by watching a single-threaded rsync.. observing how many files/sec are scrolling on the screen.. 2 files per second means largefiles (or narrow network pipes)… so you can make your -f # smaller.. like 1000.     or if you are running a fpsync “redo”  then you have to think a bit about that and possibly make the partitions larger. 
 
  
