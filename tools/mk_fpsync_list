@@ -1,14 +1,15 @@
 #!/bin/bash
 # mk-tree-mover: Automated mount and fpsync wrapper script to get max rsync/fpsync migration speed.
-#                 a script which you want to copy/rename/edit for each tree you want to move. 
-#       ***    this kind of work you want to retain a "how it was run", so you can rerun later or peer-review before.
+#                a script which you want to copy/rename/edit for each tree you want to move. 
+#   ***    this kind of work you want to retain a "how it was run", so you can rerun later or peer-review before.
 #
-#                 after you edit the things below.. run it, it will mount destination-directories,
-#                 and then it will print out the fpsync script to run (not as root) from the primary data mover host.
-#                 if using multiple data-movers (the -w flag) then run this script on each and as mentioned
-#                 it will make those VIP:/DST  mounts in /mnt/tree#   so that each host can run jobs writing
-#                 into those multiple mountpoints. then run from the primary data-mover which should have ssh-keys 
-#                 (not root ssh keys) to log into the other data-movers as your username, and then it calls rsync with sudo.
+#                after you edit the things below.. run it, it will mount destination-directories,
+#                and then it will print out the fpsync script to run (not as root) from the primary data mover host.
+#                if using multiple data-movers (the -w flag) then run this script on each and as mentioned
+#                it will make those VIP:/DST  mounts in /mnt/tree#   so that each host can run jobs writing
+#                into those multiple mountpoints. then run from the primary data-mover which should have ssh-keys 
+#                (not root ssh keys) to log into the other data-movers as your username, then it calls sudo rsync.
+#                .. Or you can remove the -S flag below and just run as root.
 #
 # Remember: Speed Kills... be super careful with this script, and have someone double check your settings!
 # Author/Maintainer:  rob@vastdata.com Fri Oct 22 23:10:28 UTC 2021
@@ -22,7 +23,11 @@ PATH=$PATH:$installdir
 FPSYNC=$(which fpsync.vast)
 FPSYNC=${FPSYNC:-/pkg/trmb/bin/fpsync.vast} #If not set, then set it
 RSYNC=$(which rsync)
-RSYNC=/pkg/trmb/bin/rsync # you can hardcode it to the specially compiled/patched rsync (see below)
+#RSYNC=/pkg/trmb/bin/rsync # you can hardcode it to the specially compiled/patched rsync (see below)
+
+##### This is the SOURCE path on this host from which you want to replicate
+SRC_PATH=/vast/201/scratch2/project_to_replicate_from
+
 
 ## Change these to match your site
 VAST_VIP_PREFIX=172.200.2 # this is the first three octets of your vip-pool
@@ -31,21 +36,25 @@ VAST_VIPS=$(seq 1 8)      # this is a sequence of numbers of the last octet of v
 
 ### This script will call sudo to create /mnt/tree# mountpoints, one to each VAST_VIP,
 ### it will mount those from the following filer:$DST_FILER_EXPORT as described below
-### This is the destination path as exported from the filer.  
+### This is the destination path as exported from the filer. 
 ### For safety it is best to make this an new and empty VAST view with nosquash for the data-movers
-DST_FILER_EXPORT_PATH=/scratch1/EXR/tree_mover_dest # this is as exported from filer..
+DST_FILER_EXPORT_PATH=/scratch1/project_destination    
 
-##### This is the source path for stuff you want to replicate
-SRC_PATH=/vast/201/scratch1/EXR/tree_mover_src
 
 ##### Tuning jobs and fpart to fit your dataset:
 ##### Your data structure has a big impact on ideal partition size, and resulting performance.
 ## We typically break it up by qty of files per partition.. (assuming filesize is somewhat uniform)
 ## or we can break it up by size..  or by a couple other strategies or mix of.
 ##
+#FPART_FLAGS="-f 1000 -n 20"    # 1k jobs per partition(or job)  and -n 20 jobs total. 20 can match the number of VAST vips you mounted. it might be faster if -n was twice the number of mounts. check ram and ldavg. 
 FPART_FLAGS="-f 10000 -n 64"    # 10k jobs per partition(or job)  and -n 64 jobs total. -n should be QTY of -w hosts * num -x * CPU cores  or half that.
-FPSYNC_W_FLAGS="-w 10.61.10.105 -w 10.61.10.107 -w 10.61.10.109" # If you have multiple data-mover hosts, and all have same paths mounted, then use em!
-# these normally dont need tweaking. except know that -S will call sudo
+
+# Multiple data-mover config: (uncomment and set to your hosts)
+#FPSYNC_W_FLAGS="-w 10.61.10.105 -w 10.61.10.107 -w 10.61.10.109" # If you have multiple data-mover hosts, and all have same paths mounted, then use em!
+
+
+# these normally dont need tweaking. except know that -S will call sudo .. you can drop the -vvv if you want. 
+# and you can drop the -S flag if you are already running as root.
 FPSYNC_FLAGS="-vvv -S -o '-lptDogW --inplace --numeric-ids'" # run this as any user, and -S flag will call SUDO to run rsync to get root-nosquash permissions
 
 echo "Info:  Below are the variables which you should have edited in this script:    $0"
