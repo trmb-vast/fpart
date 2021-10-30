@@ -34,9 +34,9 @@ VAST_VIP_PREFIX=172.200.2 # this is the first three octets of your vip-pool
 VAST_VIP_PREFIX=172.200.3 # this is the first three octets of your vip-pool
 VAST_VIPS=$(seq 1 8)      # this is a sequence of numbers of the last octet of vip-pool
 
+### Below is the DESTINATION PATH (as exported from the filer)
 ### This script will call sudo to create /mnt/tree# mountpoints, one to each VAST_VIP,
-### it will mount those from the following filer:$DST_FILER_EXPORT as described below
-### This is the destination path as exported from the filer. 
+### it will mount those from the following <filer vip>:$DST_FILER_EXPORT as described below
 ### For safety it is best to make this an new and empty VAST view with nosquash for the data-movers
 DST_FILER_EXPORT_PATH=/scratch1/project_destination    
 
@@ -83,9 +83,9 @@ make_themounts() {
 		if [ $status -eq 0 ]; then
 			echo "Info: /mnt/tree${i} already Mounted"
 		else
-			echo "Warning: Mounting: ${VAST_VIP_PREFIX}.$i:/scratch1 /mnt/tree${i}"
+			echo "Warning: Mounting: ${VAST_VIP_PREFIX}.$i:${DST_FILER_EXPORT_PATH}  /mnt/tree${i}"
 			sudo mkdir /mnt/tree${i} >/dev/null 2>&1
-			sudo mount ${VAST_VIP_PREFIX}.$i:/scratch1 /mnt/tree${i}
+			sudo mount ${VAST_VIP_PREFIX}.$i:${DST_FILER_EXPORT_PATH}   /mnt/tree${i}
 		fi
 	done
 	DST_PATH=/mnt/tree${i} # This simply takes the last of the list, used as last arg for fpsync
