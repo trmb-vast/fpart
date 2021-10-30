@@ -6,6 +6,7 @@ The idea is to saturate the destination, without reguard to the source, and make
 
 ### TL;DR: 
 ```
+apt-get install -y fpart
 wget https://raw.githubusercontent.com/trmb-vast/fpart/master/tools/fpsync.vast
 wget https://raw.githubusercontent.com/trmb-vast/fpart/master/tools/mk_fpsync_list
 echo "Next you will want to edit the mk_fpsync_list file and fill in YOUR details"
